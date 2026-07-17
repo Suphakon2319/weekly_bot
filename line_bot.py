@@ -7,15 +7,23 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 import requests
 import logging
+import os
 import pytz
 
-# ========== CONFIG — แก้ค่าตรงนี้ ==========
-LINE_CHANNEL_SECRET = "a4cdac2059c5c3c2e718652ead821ad4"
-LINE_CHANNEL_ACCESS_TOKEN = "kaoUNhXLW5p+RimJ5pJW8/cppvrlpr4nplMIwBs8eD2hGm5av1fp5oXNLkKXTNqRrRTulbDcS1GyLSyl4Vpk1zK1fS2rwAmlRZxzRaetz9ieAdipajNhk8tb/HLN7GEKbpWiJYUT+AW15SwH1WHbtwdB04t89/1o/w1cDnyilFU="
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1516340699723993129/vF6pJOIL5aMPkGWt3nxXmdKEBfugTRbGoudKoKf9yY6rYs_AmQVuQzbIs8BJ5G8nHkQW"
-COLLECT_START_HOUR = 16   # เริ่มเก็บข้อความ 16:00
-COLLECT_END_HOUR = 18     # ส่ง Discord 18:00
-TIMEZONE = "Asia/Bangkok"
+# ========== CONFIG — อ่านจาก Environment Variables ==========
+# ตั้งค่าเหล่านี้ใน Railway/Render dashboard (Variables tab) ห้าม hardcode ค่าจริงในโค้ด
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f"ไม่พบ environment variable: {name} — ต้องตั้งค่านี้ก่อนรันบอท")
+    return value
+
+LINE_CHANNEL_SECRET = _require_env("LINE_CHANNEL_SECRET")
+LINE_CHANNEL_ACCESS_TOKEN = _require_env("LINE_CHANNEL_ACCESS_TOKEN")
+DISCORD_WEBHOOK_URL = _require_env("DISCORD_WEBHOOK_URL")
+COLLECT_START_HOUR = int(os.environ.get("COLLECT_START_HOUR", "16"))   # เริ่มเก็บข้อความ 16:00
+COLLECT_END_HOUR = int(os.environ.get("COLLECT_END_HOUR", "18"))       # ส่ง Discord 18:00
+TIMEZONE = os.environ.get("TIMEZONE", "Asia/Bangkok")
 # ============================================
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -110,6 +118,11 @@ def send_to_discord():
     collected_updates.clear()
     logging.info("ส่ง Weekly Update ไป Discord เรียบร้อยแล้ว")
 
+# ===== Health check (สำหรับ UptimeRobot ping กันไม่ให้ sleep) =====
+@app.route("/", methods=["GET"])
+def health_check():
+    return "OK", 200
+
 # ===== LINE Webhook =====
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -154,12 +167,4 @@ def handle_message(event: MessageEvent):
     name = next((w for w in words if w.lower() not in skip_words), "unknown")
 
     collected_updates[name] = text
-    logging.info(f"เก็บ update ของ {name} แล้ว ({len(collected_updates)} คนรวม)")
-
-# ===== Schedule ส่ง Discord 18:00 ทุกวันศุกร์ =====
-scheduler = BackgroundScheduler(timezone=tz)
-scheduler.add_job(send_to_discord, "cron", day_of_week="fri", hour=18, minute=0)
-scheduler.start()
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    logging.info(f"เก็บ update ของ {name} แล้ว ({len(co
