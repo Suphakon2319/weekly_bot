@@ -167,4 +167,12 @@ def handle_message(event: MessageEvent):
     name = next((w for w in words if w.lower() not in skip_words), "unknown")
 
     collected_updates[name] = text
-    logging.info(f"เก็บ update ของ {name} แล้ว ({len(co
+    logging.info(f"เก็บ update ของ {name} แล้ว ({len(collected_updates)} คนรวม)")
+
+# ===== Schedule ส่ง Discord 18:00 ทุกวันศุกร์ =====
+scheduler = BackgroundScheduler(timezone=tz)
+scheduler.add_job(send_to_discord, "cron", day_of_week="fri", hour=18, minute=0)
+scheduler.start()
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
