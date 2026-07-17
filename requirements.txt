@@ -1,0 +1,6 @@
+flask
+gunicorn
+line-bot-sdk>=3.0.0
+apscheduler
+requests
+pytz
